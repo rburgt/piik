@@ -1,0 +1,31 @@
+/* line 1, ../sass/piik.sass */
+.piik {
+  float: left;
+}
+/* line 4, ../sass/piik.sass */
+.piik .aboe {
+  float: right;
+}
+/* line 7, ../sass/piik.sass */
+.piik .editWrapper {
+  clear: both;
+  float: left;
+  position: relative;
+}
+/* line 12, ../sass/piik.sass */
+.piik .editWrapper .source,
+.piik .editWrapper .result {
+  border: 1px solid #111111;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* line 19, ../sass/piik.sass */
+.piik .editWrapper .source {
+  background-color: #222222;
+  color: white;
+}
+/* line 23, ../sass/piik.sass */
+.piik .editWrapper .result {
+  background-color: white;
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		
+		<title>Piik test</title>
+		
+		<style type="text/css">
+			#piikTest {
+				width: 500px;
+				height: 300px;
+			}
+		</style>
+		
+		<link rel="stylesheet" type="text/css" href="css/piik.css" />
+		<script src="js/piik.js"></script>
+		
+		<script>
+			var initTest = function(){
+				// create new piik instance
+				// is added as a global var for testing
+				piikTest = new piik( 'piikTest' );
+			};
+			window.onload = initTest;
+		</script>
+	</head>
+	<body>
+		<textarea id="piikTest"><b>helloworld</b></textarea>
+	</body>
+</html>
