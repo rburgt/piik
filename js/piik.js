@@ -5,9 +5,9 @@
  */
 (function( window, document, undefined ){
 	/**
-	 * tool to combine two objects
+	 * combines two objects
 	 */
-	var extend = function( targetObj, sourceObj ){
+	var apply = function( targetObj, sourceObj ){
 		for ( var prop in sourceObj ){
 			targetObj[prop] = sourceObj[prop];
 		}
@@ -22,7 +22,7 @@
 		this.initLayout();
 	};
 	
-	extend( piik.prototype, {
+	apply( piik.prototype, {
 		
 		/**
 		 * create layout
@@ -35,14 +35,14 @@
 			/**
 			 * main piik wrapper
 			 */
-			extend(this.piikEl = document.createElement('div'), {
+			apply(this.piikEl = document.createElement('div'), {
 				className : 'piik'
 			});
 			
 			/**
 			 * creates piik toggle button
 			 */
-			extend(this.toggleEl = document.createElement('button'), {
+			apply(this.toggleEl = document.createElement('button'), {
 				className : 'aboe',
 				innerHTML : 'piik aboe',
 				onclick : function(){
@@ -54,7 +54,7 @@
 			/**
 			 * create wrapper for source/result
 			 */
-			extend(this.wrapperEl = document.createElement('div'), {
+			apply(this.wrapperEl = document.createElement('div'), {
 				className : 'editWrapper'
 			});
 			this.piikEl.appendChild( this.wrapperEl );
@@ -62,7 +62,7 @@
 			/**
 			 * create result element
 			 */
-			extend(this.resultEl = document.createElement('iframe'), {
+			apply(this.resultEl = document.createElement('iframe'), {
 				className : 'result'
 			});
 			this.resultEl.style.height = this.sourceEl.clientHeight + 'px';
