@@ -47,13 +47,14 @@
 		return elements;
 	};
 	
+	// searches for an tag beginning
+	// thanks to http://ejohn.org/files/htmlparser.js
+	var startTag = /^<([-A-Za-z0-9_]+)((?:\s+\w+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/igm;
+	
 	/**
-	 * css tools
-	 * TODO: create mapper for css3 animations based on browser
+	 * removes the standard webkit animation properties so own can be applied
 	 */
-	var css = {
-		
-	};
+	var noWebkitAnimations = /webkit\-animation.*;/gim;
 	
 	/**
 	 * piik main class
@@ -107,7 +108,7 @@
 			 * create animated result element
 			 */
 			var animatedEl = apply(this.animatedEl = document.createElement('iframe'), {
-				className : 'result'
+				className : 'animated'
 			});
 			animatedEl.style.width = sourceWidth;
 			animatedEl.style.height = sourceHeight;
@@ -133,7 +134,10 @@
 		
 		/**
 		 * the width of the used characters need to be mapped
-		 * so the editor is not depending on the font used
+		 * so the animation is not dependant on the font used
+		 * 
+		 * this method initiates an element to test the with of 
+		 * an character used in the editor
 		 */
 		initCharacterMap : function(){
 			this.characterMap = {};
@@ -170,7 +174,8 @@
 		},
 		
 		/**
-		 * maps characters width
+		 * measures the width of characters and caches it for later
+		 * use
 		 */
 		mapCharacters : function( characters ){
 			var characterEl = this.characterEl,
@@ -225,6 +230,7 @@
 		
 		/**
 		 * display source screen
+		 * TODO: backwards animation
 		 */
 		showSource : function(){
 			if ( this.isEditing )
@@ -233,6 +239,7 @@
 			this.isEditing = true;
 			
 			this.sourceEl.style.zIndex = 10;
+			this.animatedEl.style.zIndex = 5;
 			this.resultEl.style.zIndex = 5;
 		},
 		
@@ -246,28 +253,35 @@
 			this.isEditing = false;
 			
 			var charracterCorrection = this.characterCorrection,
-				resultDocument = this.resultEl.contentDocument,
+				animationDoc = this.animatedEl.contentDocument,
 				sourceValue = this.sourceEl.value,
 				sourceLines = sourceValue.split("\n"),
 				sourceLineCount = sourceLines.length,
 				lineIndex = 0,
-				charIndex = 0;
+				charIndex = 0
 			
-			resultDocument.documentElement.innerHTML = sourceValue
+			// push sourcecode to viewing panels
+			this.resultEl.contentDocument.documentElement.innerHTML = sourceValue
+			animationDoc.documentElement.innerHTML = sourceValue
+			
+			// get the body elements as an flat array
+			var animatedElements = flattenElement( animationDoc.body );
 			
 			// find out if there is an body tag and on wich line it starts
 			//console.log( sourceValue.match( ));
 			var bodyPos = sourceValue.search( new RegExp('<body[^>]*>([\\S\\s]*?)<\\/body>', 'gim' ));
 			
-			// only the body needs to be animated
 			if ( bodyPos !== -1 ) {
+				// body tag is found, calculate an alternate starting point for source analysis
 				lineIndex = sourceValue.substr( 0, bodyPos ).split("\n").length -1;
 				charIndex = sourceLines[lineIndex].indexOf('<body');
+				
+				//add body to element list
+				animatedElements.unshift( animationDoc.body );
 			}
 			
-			// thanks to http://ejohn.org/files/htmlparser.js
-			var startTag = /^<([-A-Za-z0-9_]+)((?:\s+\w+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/igm;
-			
+			// figure out where the start tags in the source are located
+			var startTags = [];
 			for (; lineIndex < sourceLineCount; lineIndex++ ) {
 				var line = sourceLines[lineIndex],
 					characterCount = line.length; 
@@ -284,23 +298,11 @@
 							// hooray! valid tag found, now lets position it
 							charIndex += tag.length;
 							
-							var el = document.createElement('div');
-							
-							apply(el.style, {
-								padding: 0,
-								margin: 0,
-								border: 1,
-								width: '100px',
-								height: '20px',
-								backgroundColor: 'red',
-								position: 'absolute',
-								top : ((lineIndex * charracterCorrection.line ) + charracterCorrection.top) + 'px',
-								zIndex : 200,
-								left : (this.getCharactersWidth( line.substring( 0, charIndex ) ) + charracterCorrection.left) + 'px'
+							startTags.push({
+								tag : tag,
+								top : (((lineIndex + 1) * charracterCorrection.line ) + charracterCorrection.top),
+								left : (this.getCharactersWidth( line.substring( 0, charIndex ) ) + charracterCorrection.left)
 							});
-							
-							
-							this.wrapperEl.appendChild( el );
 						}
 					}
 				}
@@ -308,22 +310,106 @@
 				charIndex = 0;
 			}
 			
-			console.log( flattenElement( resultDocument.body ) );
-			//, flattenElement( resultDocument.body )
-			/**
-			 * css transition test
-			 */
-			var resultHead = resultDocument.getElementsByTagName('head')[0],
-				style = resultDocument.createElement('style');
 			
-			style.innerHTML = '@-webkit-keyframes globalin { 0% { background: #000; font-size: 12px; margin: 0; padding: 0; text-indent: 0; border: 0; color: #fff;} } body, * { -webkit-animation-name: globalin; -webkit-animation-duration: 1s; } ';
+			/**
+			 * generate css animation
+			 */
+			var animation = '',
+				tagLength = startTags.length,
+				usedElements = [],
+				startWidth = this.sourceEl.clientWidth + 'px';
+				
+			for ( var t = 0; t < tagLength; t++ ){
+				var tag = startTags[t],
+					element = animatedElements[t];
+				
+				// animations break on body element
+				if ( element == animationDoc.body )
+					continue;
+					
+				// get the original styling applied
+				var style = getComputedStyle( element ),
+					cssText = style.cssText;
+				
+				// remove the original animations
+				cssText = cssText.replace(noWebkitAnimations, '');
+				
+				animation += [
+					'@-webkit-keyframes piik' + t + ' { 0% {',
+						//'position: absolute;',
+						'top: ' + tag.top  + 'px;',
+						'text-indent: ' + tag.left  + 'px;',
+						'left: 0px;',
+						'font-size: 12px;',
+						'margin: auto;',
+						'padding: auto;',
+						'border: auto;',
+						'width: ' + startWidth + ';',
+						'background-color: transparent;',
+						//'text-align: left;',
+					'} } ',
+					'.piikoriginal' + t + ' {',
+						cssText,
+					'}',
+					'.piik' + t + ' {',
+						'-webkit-animation-name: piik' + t + ';',
+						'-webkit-animation-duration: 1.2s;', 
+						'-webkit-animation-timing-function: ease-in;', 
+						'position: absolute;',
+						'top: ' + element.offsetTop  + 'px;',
+						'left: ' + element.offsetLeft  + 'px;',
+						'width: ' + element.offsetWidth  + 'px;',
+						'height: ' + element.offsetHeight + 'px;',
+						'margin: 0px;',
+						'padding: 0px;',
+						'border: 0px;',
+					'}'
+				].join("\n");
+				
+				// generated class can not be applied directly because it will interfere
+				// with childNode styling
+				element.piikClass = 'piikoriginal' + t + ' piik' + t;
+				usedElements.push( element );
+			}
+			
+			// append all used elements directly to the body to 
+			// allow correct absolute positioning
+			usedElements.forEach(function( element ){
+				element.style.cssText = '';
+				element.id = '';
+				animationDoc.body.appendChild( element );
+				element.className = element.piikClass;
+			});
+			
+			// background fade animation
+			animation += [
+				'@-webkit-keyframes piikbody { 0% {',
+					'background-color: #222;',
+				'} } ',
+				'body {',
+					'-webkit-animation-name: piikbody;',
+					'-webkit-animation-duration: .5s;',
+				'}'
+			].join("\n");
+			
+			/**
+			 * apply animation to result
+			 */
+			var resultHead = animationDoc.getElementsByTagName('head')[0],
+				style = animationDoc.createElement('style');
+			
+			style.innerHTML = animation;
 			resultHead.appendChild(style);
 			
 			/**
 			 * switch result/source element zindex
 			 */
+			this.animatedEl.style.zIndex = 15;
 			this.resultEl.style.zIndex = 10;
 			this.sourceEl.style.zIndex = 5;
+			
+			// do a little victory dance
+			// 0/-<  0|-<  0\-<  0>-<
 		}
 	} );
 })( window, document );
