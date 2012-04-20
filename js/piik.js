@@ -27,6 +27,30 @@
 		};
 	
 	/**
+	 * returns the full css text of an element
+	 */
+	var getElementCssText = function( element ){
+		if ( browser.webkit ){
+			return getComputedStyle(element).cssText;
+		}
+		
+		if ( browser.mozilla ){
+			var computedStyle = getComputedStyle(element),
+				cssText = '';
+			
+			for (var property in computedStyle) {  
+			    if (computedStyle.hasOwnProperty(property)) {  
+			        cssText += computedStyle[property] + ':' + computedStyle.getPropertyCSSValue(computedStyle[property]).cssText + ';';
+			    } 
+			}
+			
+			return cssText;
+		}
+
+		return '';
+	};
+	
+	/**
 	 * gets all the child elements of any given element
 	 */
 	var flattenElement = function( element ){
@@ -89,7 +113,7 @@
 			 */
 			var toggleEl = apply(this.toggleEl = document.createElement('button'), {
 				className : 'aboe',
-				innerHTML : 'piik aboe',
+				innerHTML : 'piik!',
 				onclick : function(){
 					_self.aboe();
 				}
@@ -299,7 +323,7 @@
 							charIndex += tag.length;
 							
 							startTags.push({
-								tag : tag,
+								startTag : tag,
 								top : (((lineIndex + 1) * charracterCorrection.line ) + charracterCorrection.top),
 								left : (this.getCharactersWidth( line.substring( 0, charIndex ) ) + charracterCorrection.left)
 							});
@@ -334,49 +358,107 @@
 				// remove the original animations
 				cssText = cssText.replace(noWebkitAnimations, '');
 				
-				animation += [
-					'@-webkit-keyframes piik' + t + ' { 0% {',
-						//'position: absolute;',
-						'top: ' + tag.top  + 'px;',
-						'text-indent: ' + tag.left  + 'px;',
-						'left: 0px;',
-						'font-size: 12px;',
-						'margin: auto;',
-						'padding: auto;',
-						'border: auto;',
-						'width: ' + startWidth + ';',
-						'background-color: transparent;',
-						//'text-align: left;',
-					'} } ',
-					'.piikoriginal' + t + ' {',
-						cssText,
-					'}',
-					'.piik' + t + ' {',
-						'-webkit-animation-name: piik' + t + ';',
-						'-webkit-animation-duration: 1.2s;', 
-						'-webkit-animation-timing-function: ease-in;', 
-						'position: absolute;',
-						'top: ' + element.offsetTop  + 'px;',
-						'left: ' + element.offsetLeft  + 'px;',
-						'width: ' + element.offsetWidth  + 'px;',
-						'height: ' + element.offsetHeight + 'px;',
-						'margin: 0px;',
-						'padding: 0px;',
-						'border: 0px;',
-					'}'
-				].join("\n");
+				if (  (style.display == 'inline' || style.display == 'inline-block') ){
+					animation += [
+						'@-webkit-keyframes piik' + t + ' { 0% {',
+							'text-indent: ' + this.getCharactersWidth(tag.startTag)  + 'px;',
+							'left: 0px;',
+							'font-size: 12px;',
+							'font-weight: normal;',
+							'margin: auto;',
+							'padding: auto;',
+							'border: auto;',
+							'width: ' + startWidth + ';',
+							'background-color: transparent;',
+						'} } ',
+						'.piikoriginal' + t + ' {',
+							cssText,
+						'}',
+						'.piik' + t + ' {',
+							'-webkit-animation-name: piik' + t + ';',
+							'-webkit-animation-duration: 1.2s;', 
+							'-webkit-animation-timing-function: ease-in;', 
+						'}'
+					].join("\n");
+					
+				}
+				else
+				{
+					animation += [
+						'.piikoriginal' + t + ', .piikplaceholder' + t + ' {',
+							cssText,
+						'} ',
+						
+						'.piikplaceholder' + t + ' {',
+							'-webkit-animation-name: piikplaceholder' + t + ';',
+							'-webkit-animation-duration: .6s;', 
+							'-webkit-animation-timing-function: ease-in;', 
+							'visibility: hidden;',
+							'width: ' + element.offsetWidth  + 'px;',
+							'height: ' + element.offsetHeight + 'px;',
+							'display: inline-block;',
+						'} ',
+						
+						'@-webkit-keyframes piikplaceholder' + t + ' { 0% {',
+							'margin: auto;',
+							'padding: auto;',
+							'border: auto;',
+							'width: auto;',
+						'} } ',
+						
+						'@-webkit-keyframes piik' + t + ' { 0% {',
+							//'position: absolute;',
+							'top: ' + tag.top  + 'px;',
+							'text-indent: ' + tag.left  + 'px;',
+							'left: 0px;',
+							'font-size: 12px;',
+							'margin: auto;',
+							'padding: auto;',
+							'border: auto;',
+							'width: ' + startWidth + ';',
+							'background-color: transparent;',
+							//'text-align: left;',
+						'} } ',
+						
+						'.piik' + t + ' {',
+							'-webkit-animation-name: piik' + t + ';',
+							'-webkit-animation-duration: 1.2s;', 
+							'-webkit-animation-timing-function: ease-in;', 
+							'position: absolute;',
+							'top: ' + element.offsetTop  + 'px;',
+							'left: ' + element.offsetLeft  + 'px;',
+							'width: ' + element.offsetWidth  + 'px;',
+							'height: ' + element.offsetHeight + 'px;',
+							'margin: 0px;',
+							'padding: 0px;',
+							'border: 0px;',
+						'}'
+					].join("\n");
+					
+					var placeholderEl = document.createElement('div');
+					placeholderEl.className = 'piikplaceholder' + t;
+					
+					element.placeholderEl = placeholderEl;
+					
+					usedElements.push( element );
+				}
 				
 				// generated class can not be applied directly because it will interfere
 				// with childNode styling
 				element.piikClass = 'piikoriginal' + t + ' piik' + t;
-				usedElements.push( element );
 			}
 			
 			// append all used elements directly to the body to 
 			// allow correct absolute positioning
 			usedElements.forEach(function( element ){
+				console.log(element.innerHTML);
 				element.style.cssText = '';
 				element.id = '';
+				//element.parentNode.removeChild(element);
+				if ( element.placeholderEl ){
+					element.parentNode.insertBefore( element.placeholderEl, element );
+				}
+				
 				animationDoc.body.appendChild( element );
 				element.className = element.piikClass;
 			});
@@ -388,7 +470,7 @@
 				'} } ',
 				'body {',
 					'-webkit-animation-name: piikbody;',
-					'-webkit-animation-duration: .5s;',
+					'-webkit-animation-duration: .8s;',
 				'}'
 			].join("\n");
 			
