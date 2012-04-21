@@ -295,7 +295,6 @@
 			animationDoc.documentElement.innerHTML = sourceValue
 			
 			// find out if there is an body tag and on wich line it starts
-			//console.log( sourceValue.match( ));
 			var bodyPos = sourceValue.search( new RegExp('<body[^>]*>([\\S\\s]*?)<\\/body>', 'gim' ));
 			
 			if ( bodyPos !== -1 ) {
@@ -503,8 +502,6 @@
 								range.setStart( node, charUnusedIndex +1 );
 								range.setEnd( node, charUnusedIndex + 1 );
 								range.insertNode( characterElement );
-								
-								console.log( charString, characterInfo.top, characterInfo.left, characterElement.offsetTop, characterElement.offsetLeft );
 								
 								
 								var characterOffsets = getOffsets( characterElement, animationDoc.body );
