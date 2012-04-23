@@ -183,18 +183,21 @@
 			
 			// create an element with the same style as the editor
 			// the with of the element will be used as the characters width
-			this.characterEl = document.createElement('span');
+			var characterEl = this.characterEl = document.createElement('span');
 			
-			apply(this.characterEl.style, {
-				cssText : sourceStyle.cssText,
+			apply(characterEl.style, {
+				cssText : getElementCssText(this.sourceEl),
 				padding: 0,
 				margin: 0,
 				border: 0,
 				width: 'auto',
 				height: 'auto',
-				display: 'none'
+				position: 'static',
+				display: 'none',
+				right: 0,
+				top: 0
 			});
-			this.piikEl.appendChild( this.characterEl );
+			this.piikEl.appendChild( characterEl );
 			
 			// premap ASCII table
 			var characters = [];
@@ -202,6 +205,15 @@
 				characters.push(i);
 				
 			this.mapCharacters( String.fromCharCode.apply(String, characters) );
+			
+			// mozilla does not measure whitespace, a &nbsp; tag is used for comparison
+			if ( browser.mozilla ){
+				characterEl.style.display = 'inline';
+				characterEl.innerHTML = '&nbsp;';
+				this.characterMap[" "] = characterEl.offsetWidth;
+				characterEl.style.display = 'none';
+				this.characterMap["\t"] = this.characterMap[" "] * 8;
+			}
 		},
 		
 		/**
@@ -425,11 +437,27 @@
 								'background-color: transparent;',
 								//'text-align: left;',
 							'} } ',
+							'@-moz-keyframes piik' + t + ' { 0% {',
+								//'position: absolute;',
+								'top: ' + tag.top  + 'px;',
+								'text-indent: ' + tag.left  + 'px;',
+								'left: 0px;',
+								'font-size: 12px;',
+								'margin: auto;',
+								'padding: auto;',
+								'border: auto;',
+								'width: ' + startWidth + ';',
+								'background-color: transparent;',
+								//'text-align: left;',
+							'} } ',
 							
 							'.piik' + t + ' {',
 								'-webkit-animation-name: piik' + t + ';',
 								'-webkit-animation-duration: 800ms;', 
 								'-webkit-animation-timing-function: ease-in;', 
+								'-moz-animation-name: piik' + t + ';',
+								'-moz-animation-duration: 800ms;', 
+								'-moz-animation-timing-function: ease-in;', 
 								'position: absolute;',
 								'top: ' + elementOffsets.top  + 'px;',
 								'left: ' + elementOffsets.left  + 'px;',
@@ -504,10 +532,25 @@
 										//'text-align: left;',
 									'} } ',
 									
+									'@-moz-keyframes piikchar' + characterIndex + ' { 0% {',
+										//'position: absolute;',
+										'top: ' + characterInfo.top  + 'px;',
+										'left: ' + characterInfo.left  + 'px;',
+										'font-size: 12px;',
+										'margin: auto;',
+										'padding: auto;',
+										'border: auto;',
+										'background-color: transparent;',
+										//'text-align: left;',
+									'} } ',
+									
 									'.piikchar' + characterIndex + ' {',
 										'-webkit-animation-name: piikchar' + characterIndex + ';',
 										'-webkit-animation-duration: 800ms;', 
 										'-webkit-animation-timing-function: ease-in;', 
+										'-moz-animation-name: piikchar' + characterIndex + ';',
+										'-moz-animation-duration: 800ms;', 
+										'-moz-animation-timing-function: ease-in;', 
 										'position: absolute;',
 										'top: ' + position.top  + 'px;',
 										'left: ' + position.left  + 'px;',
@@ -533,7 +576,6 @@
 			};
 			
 			animateElement.call(this, animationDoc.body);
-			
 			
 			// append all used elements directly to the body to 
 			// allow correct absolute positioning
