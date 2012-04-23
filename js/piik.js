@@ -29,26 +29,28 @@
 	/**
 	 * returns the full css text of an element
 	 */
-	var getElementCssText = function( element ){
-		if ( browser.webkit ){
+	if ( browser.webkit ){
+		var getElementCssText = function(element){
 			return getComputedStyle(element).cssText;
-		}
-		
-		if ( browser.mozilla ){
+		};
+	}
+	else if ( browser.mozilla ){
+		var getElementCssText = function(element){
 			var computedStyle = getComputedStyle(element),
 				cssText = '';
 			
 			for (var property in computedStyle) { 
-			    if (computedStyle.hasOwnProperty(property)) {  
-			        cssText += computedStyle[property] + ':' + computedStyle.getPropertyCSSValue(computedStyle[property]).cssText + ';';
+			    if (computedStyle.hasOwnProperty(property)) { 
+			    	var cssAttr = computedStyle[property];
+			        cssText += cssAttr + ':' + computedStyle.getPropertyCSSValue(cssAttr).cssText + ';';
 			    } 
 			}
 			
 			return cssText;
-		}
-
-		return '';
-	};
+		};
+	} else {
+		alert('Piik is not able to work in your browser, please use firefox or chrome');
+	}
 	
 	var getOffsets = function( element, documentBody ){
 		documentBody = typeof documentBody == 'undefined' ? document.body : documentBody;
@@ -386,14 +388,13 @@
 			// non existing tag used so webpage stylesheet wil have no impact
 			var sniffEl = document.createElement('span');
 			
-			
 			var animateElement = function( element ){
 				
 				var childNodes = element.childNodes;
 				
 				// get the original styling applied
 				var style = getComputedStyle( element ),
-					cssText = style.cssText;
+					cssText = getElementCssText(element);
 				
 				// remove the original animations
 				cssText = cssText.replace(noWebkitAnimations, '');
@@ -462,49 +463,30 @@
 							break;
 							
 						case 3:
-							// clone style of element for character position sniffing
-							sniffEl.style.cssText = cssText;
-							// prevent document style from overriding element positioning
-							apply( sniffEl.style, {
-								margin : '0',
-								padding: '0',
-								border: '0',
-								display: 'inline',
-								'float': 'none',
-								position: 'static',
-								border: '0',
-								height: 'auto',
-								width: 'auto'
-							} );
-							
 							// detect individual positions of characters
 							var nodedata = node.data,
 								nodeLenght = nodedata.length,
-								range = animationDoc.createRange(),
-								charUnusedIndex = 0;
+								range = animationDoc.createRange();
 								
 							for ( var ni = 0; ni < nodeLenght; ni++ ){
 								var charString = nodedata.charAt(ni);
 								
 								if ( notAnimatedChars.indexOf( charString ) != -1 ){
-									charUnusedIndex++;
 									continue;
 								}
 								
+								// create an selection on the text
+								range.setStart( node, ni );
+								range.setEnd( node, ni + 1 );
+								
 								// get the calculated character information 
 								var characterInfo = textCharacters[characterIndex],
-									characterElement = sniffEl.cloneNode(false);
+									characterElement = sniffEl.cloneNode(false),
+									position = range.getBoundingClientRect();
 								
 								characterIndex++;
 								characterElement.innerHTML = charString;
 								characterElement.allowData = true;
-								
-								range.setStart( node, charUnusedIndex +1 );
-								range.setEnd( node, charUnusedIndex + 1 );
-								range.insertNode( characterElement );
-								
-								
-								var characterOffsets = getOffsets( characterElement, animationDoc.body );
 								
 								animation += [
 									'.piikcharoriginal' + characterIndex + ' {',
@@ -527,8 +509,8 @@
 										'-webkit-animation-duration: 800ms;', 
 										'-webkit-animation-timing-function: ease-in;', 
 										'position: absolute;',
-										'top: ' + characterOffsets.top  + 'px;',
-										'left: ' + (characterOffsets.left - characterElement.offsetWidth )  + 'px;',
+										'top: ' + position.top  + 'px;',
+										'left: ' + position.left  + 'px;',
 										'display: block;',
 										'margin: 0px;',
 										'padding: 0px;',
@@ -544,12 +526,6 @@
 								// with childNode styling
 								characterElement.piikClass = 'piikcharoriginal' + characterIndex + ' piikchar' + characterIndex;
 								usedElements.push( characterElement );
-								
-								element.removeChild( characterElement );
-								
-								charUnusedIndex = 0;
-								i++;
-								node = childNodes[i];
 							}
 							break;
 					}
@@ -587,6 +563,13 @@
 					element.className = element.piikClass;
 			});
 			
+			
+			/*
+			usedElements[0].addEventListener("webkitAnimationEnd", function(){
+				console.log('test');
+			}, false); 
+			*/
+			
 			// background fade animation
 			animation += [
 				'@-webkit-keyframes piikbody { 0% {',
@@ -606,6 +589,7 @@
 			
 			style.innerHTML = animation;
 			resultHead.appendChild(style);
+			
 			
 			/**
 			 * switch result/source element zindex
