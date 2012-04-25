@@ -665,6 +665,7 @@
 			
 			this.pauseStyleEl.innerHTML = '';
 			this.animationStyleEl.innerHTML = '';
+			
 			this.animationStyleEl.innerHTML = animationCss;
 		},
 		
