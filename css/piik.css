@@ -1,18 +1,19 @@
 /* line 1, ../sass/piik.sass */
 .piik {
   float: left;
+  width: 100%;
 }
-/* line 4, ../sass/piik.sass */
+/* line 5, ../sass/piik.sass */
 .piik .aboe {
   float: right;
 }
-/* line 7, ../sass/piik.sass */
+/* line 8, ../sass/piik.sass */
 .piik .editWrapper {
   clear: both;
   float: left;
   position: relative;
 }
-/* line 12, ../sass/piik.sass */
+/* line 13, ../sass/piik.sass */
 .piik .editWrapper .source,
 .piik .editWrapper .result,
 .piik .editWrapper .animated {
@@ -21,12 +22,12 @@
   top: 0;
   left: 0;
 }
-/* line 20, ../sass/piik.sass */
+/* line 21, ../sass/piik.sass */
 .piik .editWrapper .source {
-  background-color: #222222;
-  color: white;
+  background-color: white;
+  color: #333333;
 }
-/* line 24, ../sass/piik.sass */
+/* line 25, ../sass/piik.sass */
 .piik .editWrapper .result,
 .piik .editWrapper .animated {
   background-color: white;

@@ -3,7 +3,7 @@
  * 
  * @author Rob van der Burgt rburgt@gmail.com
  */
-(function( window, document, undefined ){
+(function( window, document ){
 	/**
 	 * combines two objects
 	 */
@@ -26,31 +26,7 @@
 			mozilla :  browserMatch[1] == 'mozilla'
 		};
 	
-	/**
-	 * returns the full css text of an element
-	 */
-	if ( browser.webkit ){
-		var getElementCssText = function(element){
-			return getComputedStyle(element).cssText;
-		};
-	}
-	else if ( browser.mozilla ){
-		var getElementCssText = function(element){
-			var computedStyle = getComputedStyle(element),
-				cssText = '';
-			
-			for (var property in computedStyle) { 
-			    if (computedStyle.hasOwnProperty(property)) { 
-			    	var cssAttr = computedStyle[property];
-			        cssText += cssAttr + ':' + computedStyle.getPropertyCSSValue(cssAttr).cssText + ';';
-			    } 
-			}
-			
-			return cssText;
-		};
-	} else {
-		alert('Piik is not able to work in your browser, please use firefox or chrome');
-	}
+	
 	
 	var getOffsets = function( element, documentBody ){
 		documentBody = typeof documentBody == 'undefined' ? document.body : documentBody;
@@ -70,6 +46,44 @@
 	    	left : offsetLeft
 	    };
 	};
+	
+	/**
+	 * returns the full css text of an element
+	 */
+	if ( browser.webkit ){
+		var animationStartEvent = 'webkitAnimationStart',
+			animationEndEvent = 'webkitAnimationEnd',
+			cssPrefix = '-webkit';
+		
+		var getElementCssText = function(element){
+			return getComputedStyle(element).cssText;
+		};
+	}
+	else if ( browser.mozilla ){
+		var animationStartEvent = 'animationstart',
+			animationEndEvent = 'animationend',
+			cssPrefix = '-moz';
+		
+		var getElementCssText = function(element){
+			var computedStyle = getComputedStyle(element),
+				cssText = '';
+			
+			for (var property in computedStyle) { 
+			    if (computedStyle.hasOwnProperty(property)) { 
+			    	var cssAttr = computedStyle[property],
+			    		value = computedStyle.getPropertyCSSValue(cssAttr);
+			    		
+			    	if ( value != null )
+			        	cssText += cssAttr + ':' + value.cssText + ';';
+			    } 
+			}
+			
+			return cssText;
+		};
+	} else {
+		alert('Piik is not able to work in your browser, please use firefox or chrome');
+		return;
+	}
 		
 	// searches for an tag beginning/endtag
 	// thanks to http://ejohn.org/files/htmlparser.js
@@ -91,7 +105,9 @@
 	 */
 	var piik = window.piik = function( targetId ){
 		this.isEditing = true;
+		this.isRunning = false;
 		this.sourceEl = document.getElementById( targetId );
+		
 		this.initLayout();
 		this.initCharacterMap();
 	};
@@ -128,7 +144,7 @@
 			piikEl.appendChild( toggleEl );
 			
 			/**
-			 * create wrapper for source/result
+			 * create wrapper for source/result for positioning
 			 */
 			var wrapperEl = apply(this.wrapperEl = document.createElement('div'), {
 				className : 'editWrapper'
@@ -136,7 +152,7 @@
 			piikEl.appendChild( wrapperEl );
 			
 			/**
-			 * create animated result element
+			 * element which displays the animation 
 			 */
 			var animatedEl = apply(this.animatedEl = document.createElement('iframe'), {
 				className : 'animated'
@@ -146,7 +162,7 @@
 			wrapperEl.appendChild( animatedEl );
 			
 			/**
-			 * create result element
+			 * element for displaying rendered code
 			 */
 			var resultEl = apply(this.resultEl = document.createElement('iframe'), {
 				className : 'result'
@@ -156,7 +172,7 @@
 			wrapperEl.appendChild( resultEl );
 			
 			/**
-			 * transform visual dom
+			 * transform visual dom with created elements
 			 */
 			sourceEl.parentNode.appendChild( piikEl );
 			sourceEl.className += ' source';
@@ -164,8 +180,8 @@
 		},
 		
 		/**
-		 * the width of the used characters need to be mapped
-		 * so the animation is not dependant on the font used
+		 * the width of the used characters in the editor need to be 
+		 * mapped so the animation is not dependent on the font used
 		 * 
 		 * this method initiates an element to test the with of 
 		 * an character used in the editor
@@ -217,8 +233,8 @@
 		},
 		
 		/**
-		 * measures the width of characters and caches it for later
-		 * use
+		 * measures the width of characters and caches it for 
+		 * later use
 		 */
 		mapCharacters : function( characters ){
 			var characterEl = this.characterEl,
@@ -262,45 +278,15 @@
 		},
 		
 		/**
-		 * piik aboe, toggles the view, does some magic
+		 * generates the animation from the current
+		 * source in the editor
 		 */
-		aboe : function(){
-			if ( this.isEditing )
-				this.showResult();
-			else
-				this.showSource();
-		},
-		
-		/**
-		 * display source screen
-		 * TODO: backwards animation
-		 */
-		showSource : function(){
-			if ( this.isEditing )
-				return;
-				
-			this.isEditing = true;
-			
-			this.sourceEl.style.zIndex = 10;
-			this.animatedEl.style.zIndex = 5;
-			this.resultEl.style.zIndex = 5;
-		},
-		
-		/**
-		 * display result screen / animation
-		 */
-		showResult : function(){
-			if ( !this.isEditing )
-				return;
-				
-			this.isEditing = false;
-			
+		buildAnimation : function(){
 			var charracterCorrection = this.characterCorrection,
 				animationDoc = this.animatedEl.contentDocument,
 				sourceValue = this.sourceEl.value,
 				sourceLength = sourceValue.length,
 				sourceLines = sourceValue.split("\n"),
-				//sourceLineCount = sourceLines.length,
 				lineIndex = 0,
 				charIndex = 0
 			
@@ -324,10 +310,10 @@
 			
 			while ( charIndex < sourceLength ) {
 				var charStartTag = sourceValue.substring( charIndex ).match( startTag );
+				
 				if ( charStartTag && charStartTag.length > 0  )
 				{
 					charStartTag = charStartTag[0];
-					
 					
 					var lastNewLineIndex = sourceValue.substring( 0, charIndex ).lastIndexOf("\n") + 1,
 						lineText = sourceValue.substring( lastNewLineIndex, charIndex + charStartTag.length ),
@@ -371,8 +357,6 @@
 					
 					textCharacters.push({
 						character : character,
-						//top : lineIndex,
-						//left : charIndex - lastNewLineIndex
 						top : ((lineIndex * charracterCorrection.line ) + charracterCorrection.top),
 						left : (this.getCharactersWidth( lineText ) + charracterCorrection.left)
 					});
@@ -385,22 +369,22 @@
 				charIndex++;
 			}
 			
-			
 			/**
-			 * generate css animation
+			 * append editor & result position to elements and characters
 			 */
-			var animation = '',
-				tagLength = startTags.length,
+			var tagLength = startTags.length,
 				tagIndex = -1,
-				usedElements = [],
+				animatedElements = this.animatedElements = [],
 				startWidth = this.sourceEl.clientWidth + 'px',
 				characterIndex = 0;
 			
-			// create an tag to sniff for an character position
-			// non existing tag used so webpage stylesheet wil have no impact
-			var sniffEl = document.createElement('span');
+			// create an base element for holding an animated character
+			var charEl = document.createElement('span');
 			
-			var animateElement = function( element ){
+			// range will sniff for a single character position 
+			var range = animationDoc.createRange();
+			
+			var discoverElementAnimation = function( element ){
 				
 				var childNodes = element.childNodes;
 				
@@ -420,61 +404,35 @@
 					if ( style.display == 'block' || style.display == 'inline-block' ){
 						var elementOffsets = getOffsets( element, animationDoc.body );
 						
-						animation += [
-							'.piikoriginal' + t + ' {',
-								cssText,
-							'} ',
-							'@-webkit-keyframes piik' + t + ' { 0% {',
-								//'position: absolute;',
-								'top: ' + tag.top  + 'px;',
-								'text-indent: ' + tag.left  + 'px;',
-								'left: 0px;',
-								'font-size: 12px;',
-								'margin: auto;',
-								'padding: auto;',
-								'border: auto;',
-								'width: ' + startWidth + ';',
-								'background-color: transparent;',
-								//'text-align: left;',
-							'} } ',
-							'@-moz-keyframes piik' + t + ' { 0% {',
-								//'position: absolute;',
-								'top: ' + tag.top  + 'px;',
-								'text-indent: ' + tag.left  + 'px;',
-								'left: 0px;',
-								'font-size: 12px;',
-								'margin: auto;',
-								'padding: auto;',
-								'border: auto;',
-								'width: ' + startWidth + ';',
-								'background-color: transparent;',
-								//'text-align: left;',
-							'} } ',
-							
-							'.piik' + t + ' {',
-								'-webkit-animation-name: piik' + t + ';',
-								'-webkit-animation-duration: 800ms;', 
-								'-webkit-animation-timing-function: ease-in;', 
-								'-moz-animation-name: piik' + t + ';',
-								'-moz-animation-duration: 800ms;', 
-								'-moz-animation-timing-function: ease-in;', 
-								'position: absolute;',
-								'top: ' + elementOffsets.top  + 'px;',
-								'left: ' + elementOffsets.left  + 'px;',
-								'width: ' + element.offsetWidth  + 'px;',
-								'height: ' + element.offsetHeight + 'px;',
-								'margin: 0px;',
-								'padding: 0px;',
-								'border: 0px;',
-							'}'
-						].join("\n");
+						element.editorStyle = [
+							'top: ' + tag.top  + 'px;',
+							'text-indent: ' + tag.left  + 'px;',
+							'left: 0px;',
+							'font-size: 12px;',
+							'margin: auto;',
+							'padding: auto;',
+							'border: auto;',
+							'width: ' + startWidth + ';',
+							'background-color: none;'
+						].join('\n');
+						
+						element.resultStyle = [
+							cssText + ';',
+							'top: ' + elementOffsets.top  + 'px;',
+							'left: ' + elementOffsets.left  + 'px;',
+							'width: ' + element.offsetWidth  + 'px;',
+							'height: ' + element.offsetHeight + 'px;',
+							'margin: 0px;',
+							'padding: 0px;',
+							'border: 0px;',
+						].join('\n');
 						
 						// generated class can not be applied directly because it will interfere
 						// with childNode styling
-						element.piikClass = 'piikoriginal' + t + ' piik' + t;
+						element.piikId = 'piik' + t;
 					}
 						
-					usedElements.push( element );
+					animatedElements.push( element );
 				}
 				
 				// childNodes.length need to be calculated every time
@@ -487,14 +445,13 @@
 					
 					switch( node.nodeType ){
 						case 1:
-							animateElement.call(this, node );
+							discoverElementAnimation.call(this, node );
 							break;
 							
 						case 3:
 							// detect individual positions of characters
 							var nodedata = node.data,
-								nodeLenght = nodedata.length,
-								range = animationDoc.createRange();
+								nodeLenght = nodedata.length;
 								
 							for ( var ni = 0; ni < nodeLenght; ni++ ){
 								var charString = nodedata.charAt(ni);
@@ -509,85 +466,93 @@
 								
 								// get the calculated character information 
 								var characterInfo = textCharacters[characterIndex],
-									characterElement = sniffEl.cloneNode(false),
+									characterElement = charEl.cloneNode(false),
 									position = range.getBoundingClientRect();
 								
 								characterIndex++;
 								characterElement.innerHTML = charString;
 								characterElement.allowData = true;
 								
-								animation += [
-									'.piikcharoriginal' + characterIndex + ' {',
-										cssText,
-									'} ',
-									'@-webkit-keyframes piikchar' + characterIndex + ' { 0% {',
-										//'position: absolute;',
-										'top: ' + characterInfo.top  + 'px;',
-										'left: ' + characterInfo.left  + 'px;',
-										'font-size: 12px;',
-										'margin: auto;',
-										'padding: auto;',
-										'border: auto;',
-										'background-color: transparent;',
-										//'text-align: left;',
-									'} } ',
-									
-									'@-moz-keyframes piikchar' + characterIndex + ' { 0% {',
-										//'position: absolute;',
-										'top: ' + characterInfo.top  + 'px;',
-										'left: ' + characterInfo.left  + 'px;',
-										'font-size: 12px;',
-										'margin: auto;',
-										'padding: auto;',
-										'border: auto;',
-										'background-color: transparent;',
-										//'text-align: left;',
-									'} } ',
-									
-									'.piikchar' + characterIndex + ' {',
-										'-webkit-animation-name: piikchar' + characterIndex + ';',
-										'-webkit-animation-duration: 800ms;', 
-										'-webkit-animation-timing-function: ease-in;', 
-										'-moz-animation-name: piikchar' + characterIndex + ';',
-										'-moz-animation-duration: 800ms;', 
-										'-moz-animation-timing-function: ease-in;', 
-										'position: absolute;',
-										'top: ' + position.top  + 'px;',
-										'left: ' + position.left  + 'px;',
-										'display: block;',
-										'margin: 0px;',
-										'padding: 0px;',
-										'border: 0px;',
-										'text-indent: 0px;',
-										'width: auto;',
-										'height: auto;',
-										'background: none;',
-									'}'
-								].join("\n");
+								characterElement.editorStyle = [
+									'top: ' + characterInfo.top  + 'px;',
+									'left: ' + characterInfo.left  + 'px;',
+									'font-size: 12px;',
+									'margin: 0px;',
+									'padding: 0px;',
+									'border: 0px;',
+									'background-color: none;'
+								].join('\n');
+								
+								characterElement.resultStyle = [
+									cssText + ';',
+									'top: ' + position.top  + 'px;',
+									'left: ' + position.left  + 'px;',
+									'display: block;',
+									'margin: 0px;',
+									'padding: 0px;',
+									'border: 0px;',
+									'text-indent: 0px;',
+									'width: auto;',
+									'height: auto;',
+									'background: none;'
+								].join('\n');
+								
 								
 								// generated class can not be applied directly because it will interfere
 								// with childNode styling
-								characterElement.piikClass = 'piikcharoriginal' + characterIndex + ' piikchar' + characterIndex;
-								usedElements.push( characterElement );
+								characterElement.piikId = 'piikchar' + characterIndex;
+								animatedElements.push( characterElement );
 							}
 							break;
 					}
 				}
 			};
 			
-			animateElement.call(this, animationDoc.body);
+			// discover the animations for body elements
+			discoverElementAnimation.call(this, animationDoc.body);
 			
-			// append all used elements directly to the body to 
-			// allow correct absolute positioning
-			usedElements.forEach(function( element ){
-				element.style.cssText = '';
-				element.id = '';
+			// force the height of the body to improve animation speed
+			animationDoc.body.style.height = animationDoc.body.offsetHeight + 'px';
+			
+			/**
+			 * create an main element outside the document body
+			 * to append all animated elements to, causing less
+			 * reflows
+			 */
+			var mainEl = animationDoc.createElement('div');
+			apply( mainEl.style, {
+				margin: 0,
+				padding: 0,
+				border: 0,
+				position: 'absolute',
+				top: 0,
+				left: 0
+			} );
+			
+			/**
+			 * reposition the dom for animation, all elements are 
+			 * animated from viewport so the element offsetParent 
+			 * should be aligned to the browser window
+			 */
+			
+			// save the animated classes for the pausing the animation
+			var animatedIds = []; 
+			animatedElements.forEach(function( element ){
+				mainEl.appendChild( element );
 				
-				var childNodes = element.childNodes,
-					childLength = childNodes.length;
+				element.style.cssText = '';
+				element.style.position = 'absolute';
+				element.id = element.piikId;
+				element.className = '';
+				
+				animatedIds.push(element.piikId);
 				
 				// clear the original textNode data of the element
 				if ( !element.allowData ){
+					
+					var childNodes = element.childNodes,
+						childLength = childNodes.length;
+					
 					for ( var x = 0; x < childLength; x++ ){
 						var node = childNodes[x];
 						
@@ -598,50 +563,158 @@
 						node.data = '';
 					}
 				}
-				
-				animationDoc.body.appendChild( element );
-				
-				if ( element.piikClass )
-					element.className = element.piikClass;
 			});
 			
-			
-			/*
-			usedElements[0].addEventListener("webkitAnimationEnd", function(){
-				console.log('test');
-			}, false); 
-			*/
-			
-			// background fade animation
-			animation += [
-				'@-webkit-keyframes piikbody { 0% {',
-					'background-color: #222;',
-				'} } ',
-				'body {',
-					'-webkit-animation-name: piikbody;',
-					'-webkit-animation-duration: .8s;',
-				'}'
-			].join("\n");
-			
-			/**
-			 * apply animation to result
-			 */
-			var resultHead = animationDoc.getElementsByTagName('head')[0],
-				style = animationDoc.createElement('style');
-			
-			style.innerHTML = animation;
-			resultHead.appendChild(style);
+			animationDoc.body.appendChild( mainEl );
 			
 			
-			/**
-			 * switch result/source element zindex
-			 */
-			this.animatedEl.style.zIndex = 15;
-			this.resultEl.style.zIndex = 10;
+			// register start/stop of animation event handlers
+			var _self = this;
+			animatedElements[0].addEventListener(animationStartEvent, function(){
+				_self.onAnimationStart();
+			}, false);
+			
+			animatedElements[0].addEventListener(animationEndEvent, function(){
+				_self.onAnimationEnd();
+			}, false);
+			
+			// add animation style elements to head
+			var animationHead = animationDoc.getElementsByTagName('head')[0];
+			
+			// create an empty style tag for adding animations to
+			this.animationStyleEl = animationDoc.createElement('style');
+			animationHead.appendChild(this.animationStyleEl);
+			
+			// create an empty style tag for pausing the running animation
+			this.pauseStyleEl = animationDoc.createElement('style');
+			this.pauseCss = '#' + animatedIds.join(', #') + '{' + cssPrefix + '-animation-play-state: paused !important; }';
+			animationHead.appendChild(this.pauseStyleEl);
+		},
+		
+		/**
+		 * shows the animated element when animation starts
+		 */
+		onAnimationStart : function(){
+			this.animationStartTime = (new Date()).getTime();
+			
+			this.isRunning = true;
+			
+			this.animatedEl.style.zIndex = 10;
 			this.sourceEl.style.zIndex = 5;
+			this.resultEl.style.zIndex = 5;
+			console.log('start');
+		},
+		
+		/**
+		 * hides the animated element when animation ends
+		 */
+		onAnimationEnd : function(){
+			this.isRunning = false;
+			this.animatedEl.style.zIndex = 5;
 			
-			// do a little victory dance
-			// 0/-<  0|-<  0\-<  0>-<
+			if ( this.isEditing ){
+				this.sourceEl.style.zIndex = 10;
+				this.resultEl.style.zIndex = 5;
+			} else {
+				this.sourceEl.style.zIndex = 5;
+				this.resultEl.style.zIndex = 10;
+			}
+			console.log('end');
+		},
+		
+		/**
+		 * pauses the running animation, elements/css prepared
+		 * in buildAnimation
+		 */
+		pauseAnimation : function(){
+			this.pauseStyleEl.innerHTML = this.pauseCss;
+			this.animationRunTime = (new Date()).getTime() - this.animationStartTime;
+		},
+		
+		/**
+		 * pauses the running animation, elements/css prepared
+		 * in buildAnimation
+		 */
+		playAnimation : function( startStyle, endStyle, duration ){
+			var animationCss = '',
+				elementCss = '';
+				
+			this.animatedElements.forEach( function(element){
+				// dont use element.className, this will cause dom reflow
+				var piikId = element.piikId;
+				
+				animationCss += [
+					'@'+ cssPrefix +'-keyframes ' + piikId + ' {',
+						'100% {',
+							element[endStyle],
+						'}',
+					'} ',
+					
+					'#' + piikId + '{',
+						startStyle ? element[startStyle] : getElementCssText(element).replace(noWebkitAnimations, ''),
+					'} ',
+					
+					'#' + piikId + '{',
+						cssPrefix + '-animation-name: ' + piikId + ';',
+						cssPrefix + '-animation-duration: ' + duration + 'ms;', 
+						cssPrefix + '-animation-timing-function: linear;',
+						cssPrefix + '-animation-play-state: running;',
+					'} ',
+				].join('\n');
+			} );
+			
+			this.pauseStyleEl.innerHTML = '';
+			this.animationStyleEl.innerHTML = '';
+			this.animationStyleEl.innerHTML = animationCss;
+		},
+		
+		/**
+		 * piik aboe, toggles the view
+		 */
+		aboe : function(){
+			if ( this.isEditing )
+				this.showResult();
+			else
+				this.showSource();
+		},
+		
+		/**
+		 * display source screen
+		 * TODO: backwards animation
+		 */
+		showSource : function(){
+			if ( this.isEditing )
+				return;
+				
+			this.isEditing = true;
+			
+			if ( !this.isRunning ){
+				this.pauseAnimation();
+				this.playAnimation('resultStyle', 'editorStyle', 800);
+			} else {
+				this.pauseAnimation();
+				this.playAnimation(false, 'editorStyle', this.animationRunTime);
+			}
+		},
+		
+		/**
+		 * display result screen / animation
+		 */
+		showResult : function(){
+			if ( !this.isEditing )
+				return;
+				
+			this.isEditing = false;
+			
+			// if no animation is running, the animation has to 
+			// be build from the current source in the editor
+			if ( !this.isRunning ){
+				this.buildAnimation();
+				this.playAnimation('editorStyle', 'resultStyle', 800);
+			} else {
+				this.pauseAnimation();
+				this.playAnimation(false, 'resultStyle', this.animationRunTime);
+			}
 		}
 	} );
 })( window, document );

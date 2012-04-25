@@ -7,12 +7,13 @@
 		
 		<style type="text/css">
 			#piikTest {
-				width: 700px;
-				height: 500px;
+				width: 900px;
+				height: 560px;
 			}
 			
-			.result {
-				left: 700px !important;
+			body {
+				width: 900px;
+				margin: 0 auto;
 			}
 		</style>
 		
@@ -24,6 +25,14 @@
 				// create new piik instance
 				// is added as a global var for testing
 				piikTest = new piik( 'piikTest' );
+				
+				document.body.onkeydown = function(){
+					piikTest.showResult();
+				};
+				
+				document.body.onkeyup = function(){
+					piikTest.showSource();
+				};
 			};
 			window.onload = initTest;
 		</script>
@@ -36,7 +45,10 @@
 	
 	<title>Piik test page</title>
 	<style type="text/css">
-		body { background-color: #fff;font-family: sans-serif;}
+		body { 
+			background-color: #fff;
+			font-family: sans-serif;
+		}
 		#wrapper { 
 			width: 400px; background-color: #aaa; font-size: 33px;
 			margin: 0 auto; padding: 30px;
